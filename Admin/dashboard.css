@@ -1,0 +1,297 @@
+:root {
+  --primary-color: #ff6b81;
+  --secondary-color: #f9f9f9;
+  --accent-color: #ff4757;
+  --text-color: #333;
+  --border-color: #ddd;
+}
+
+  /* Base reset */
+  body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background-color: var(--secondary-color);
+    color: var(--text-color);
+  }
+  
+   /* Sidebar fixed to the left */
+.sidebar {
+  position: fixed;      /* Stays in place when scrolling */
+  left: 0;
+  top: 0;
+  width: 180px;         /* Adjust as needed */
+  height: 100vh;        /* Full viewport height */
+  background-color: #fff;
+  border-right: 1px solid var(--border-color);
+  padding: 20px;
+  overflow-y: auto;      /* Scroll if content is tall */
+}
+
+/* Sidebar logo */
+.sidebar .logo {
+  color: var(--primary-color);
+  margin-bottom: 20px;
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+
+/* Sidebar nav */
+.sidebar ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.sidebar ul li {
+  margin-bottom: 10px;
+}
+
+.sidebar ul li a {
+  color: var(--text-color);
+  text-decoration: none;
+  display: block;
+  padding: 8px 12px;
+  border-radius: 4px;
+  transition: background-color 0.3s ease;
+}
+
+.sidebar ul li a:hover {
+  background-color: var(--primary-color);
+  color: #fff;
+}
+
+.sidebar ul li.active a {
+  background-color: var(--primary-color);
+  color: #fff;
+}
+
+  
+  /* Main content layout */
+  .content {
+    margin-left: 220px;
+    padding: 20px;
+  }
+  
+  /* Header (top bar) */
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #fff;
+    padding: 10px 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 0 5px rgba(0,0,0,0.1);
+  }
+  
+  .search input {
+    padding: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+  }
+  
+  .profile {
+    display: flex;
+    align-items: center;
+  }
+  .profile img {
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    margin-right: 8px;
+  }
+  
+  /* Dashboard Cards */
+  .dashboard-cards {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+  
+  .card {
+    background: #ff6b81;
+    flex: 1;
+    min-width: 200px;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 0 5px rgba(0,0,0,0.1);
+    text-align: center;
+  }
+  
+  .card h3 {
+    margin: 0 0 10px 0;
+    color: var(--text-color);
+  }
+  
+  /* 
+     We'll place inventory alerts on the left 
+     and top-selling table on the right 
+     side by side 
+  */
+  .dashboard-details {
+    display: flex;
+    flex-wrap: nowrap; /* keep them side by side on large screens */
+    gap: 20px;
+    align-items: flex-start;
+  }
+  
+  /* Left: Inventory Alerts Container */
+  .inventory-alerts-container {
+    width: 50%;
+    box-sizing: border-box;
+    background: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 0 5px rgba(0,0,0,0.1);
+  }
+  
+  /* Right: Top Selling Table */
+  .top-selling-table {
+    width: 50%;
+    box-sizing: border-box;
+    background: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 0 5px rgba(0,0,0,0.1);
+  }
+  
+  /* Alert Section */
+  .alert-section {
+    margin-bottom: 20px;
+  }
+  .alert-section h3 {
+    margin-bottom: 10px;
+    color: var(--text-color);
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 5px;
+  }
+  
+  /* Alert List */
+  .alert-list {
+    max-height: 250px; /* scrollable area if many items */
+    overflow-y: auto;
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    background: var(--secondary-color);
+  }
+  
+  .alert-item {
+    background: #ebe2e6;
+    padding: 10px;
+    margin-bottom: 10px;
+    border-radius: 5px;
+    border: 1px solid var(--border-color);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+  }
+  
+  .alert-title {
+    flex: 1;
+    font-weight: bold;
+  }
+  
+  .alert-info {
+    font-size: 14px;
+    color: #666;
+  }
+  
+  .no-alert {
+    font-style: italic;
+    color: #888;
+  }
+  
+  /* Progress Bar */
+  .progress-bar {
+    width: 150px;
+    height: 10px;
+    background: #eee;
+    border-radius: 5px;
+    overflow: hidden;
+    margin: 5px 0;
+    flex-shrink: 0;
+  }
+  .progress-fill {
+    height: 100%;
+    background-color: red;
+    transition: width 0.3s ease;
+  }
+  
+  /* Buttons */
+  .alert-action {
+    background: var(--accent-color);
+    color: #fff;
+    border: none;
+    padding: 6px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-left: auto;
+  }
+  .alert-action:hover {
+    background: #ff2f47;
+  }
+  .discount-btn {
+    background-color: #ffae00;
+    margin-left: 8px;
+  }
+  .discount-btn:hover {
+    background-color: #f59e00;
+  }
+  .feature-btn {
+    background-color: #007bff;
+    margin-left: 8px;
+  }
+  .feature-btn:hover {
+    background-color: #0056b3;
+  }
+  .restock-btn {
+    background-color: #28a745;
+    margin-left: 8px;
+  }
+  .restock-btn:hover {
+    background-color: #218838;
+  }
+  
+  /* Critical/Warning badges */
+  .critical {
+    color: red;
+    font-weight: bold;
+  }
+  .warning {
+    color: orange;
+    font-weight: bold;
+  }
+  
+  /* Table of Top Selling Products */
+  .top-selling-table table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+  }
+  .top-selling-table th, 
+  .top-selling-table td {
+    text-align: left;
+    padding: 10px;
+    border-bottom: 1px solid var(--border-color);
+  }
+  
+  /* Responsive: stack them if screen is too narrow */
+  @media (max-width: 768px) {
+    .dashboard-details {
+      flex-wrap: wrap; /* allow wrapping on smaller screens */
+    }
+    .inventory-alerts-container,
+    .top-selling-table {
+      width: 100%;
+    }
+    .alert-item {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    .alert-action {
+      margin: 5px 0 0 0 !important;
+    }
+  }
+  

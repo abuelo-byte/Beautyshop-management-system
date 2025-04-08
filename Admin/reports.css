@@ -1,0 +1,191 @@
+/* reports.css */
+
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f9f9f9;
+    color: #333;
+}
+
+.page-header {
+    background: #fff;
+    padding: 20px;
+    border-bottom: 1px solid #ddd;
+    text-align: center;
+}
+.page-header h1 {
+    margin: 0;
+    color: #ff6b81;
+}
+.page-header p {
+    margin: 5px 0 0;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 20px auto;
+    padding: 0 20px;
+}
+
+.revenue-cards {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin-bottom: 30px;
+}
+.card {
+    background: #fff;
+    flex: 1;
+    min-width: 200px;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 0 5px rgba(0,0,0,0.1);
+    text-align: center;
+}
+.card h3 {
+    margin: 0 0 10px 0;
+    color: #ff6b81;
+}
+.card p {
+    margin: 0 0 10px;
+}
+.card-value {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #333;
+}
+.card-icon {
+    font-size: 1.2rem;
+    color: #666;
+}
+
+section {
+    background: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    box-shadow: 0 0 5px rgba(0,0,0,0.1);
+}
+section h2 {
+    margin-top: 0;
+    color: #ff6b81;
+}
+section ul {
+    list-style: none;
+    padding: 0;
+}
+section ul li {
+    margin: 5px 0;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+table thead {
+    background: #f4f4f4;
+}
+table th, table td {
+    text-align: left;
+    padding: 10px;
+    border-bottom: 1px solid #ddd;
+}
+.export-section p {
+    margin: 10px 0;
+}
+.export-section a {
+    color: #ff6b81;
+    text-decoration: none;
+    margin-right: 10px;
+}
+.export-section a:hover {
+    text-decoration: underline;
+}
+.export-section button {
+    padding: 8px 12px;
+    background: #ff6b81;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+.export-section button:hover {
+    background: #ff4757;
+}
+/* Sidebar */
+.sidebar {
+    width: 220px;
+    background-color: rgb(209, 71, 151);
+    height: 100vh;
+    position: fixed;
+    left: 0;
+    top: 0;
+    color: #fff;
+    padding: 20px;
+    box-sizing: border-box;
+    overflow-y: auto;
+  }
+  
+  .sidebar .logo {
+    font-size: 20px;
+    margin-bottom: 30px;
+    text-align: center;
+  }
+  
+  .sidebar ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  
+  .sidebar ul li {
+    margin: 15px 0;
+  }
+  
+  .sidebar ul li a {
+    color: #fff;
+    text-decoration: none;
+    padding: 8px 0;
+    display: block;
+    transition: background-color 0.3s ease;
+  }
+  
+  .sidebar ul li.active a,
+  .sidebar ul li a:hover {
+    background-color: var(--accent-color);
+  }
+  
+  /* Main content layout */
+  .content {
+    margin-left: 220px;
+    padding: 20px;
+  }
+  
+  /* Header (top bar) */
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #fff;
+    padding: 10px 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 0 5px rgba(0,0,0,0.1);
+  }
+  
+  .search input {
+    padding: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+  }
+  
+  .profile {
+    display: flex;
+    align-items: center;
+  }
+  .profile img {
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    margin-right: 8px;
+  }
