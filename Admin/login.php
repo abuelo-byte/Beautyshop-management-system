@@ -13,7 +13,7 @@ session_start();
 $servername = "localhost";
 $username = "root";
 $password = "";
-$dbname = "beautyshop"; // or your actual DB name
+$dbname = "cafeteria-management-system";
 
 $conn = new mysqli($servername, $username, $password, $dbname);
 if ($conn->connect_error) {

@@ -1,4 +1,8 @@
 <?php
+require_once 'includes/db_setup.php';
+require_once 'includes/PHPMailer/PHPMailer.php';
+require_once 'includes/PHPMailer/SMTP.php';
+require_once 'includes/PHPMailer/Exception.php';
 session_start();
 
 // 1) Check if user is staff or admin
@@ -171,6 +175,123 @@ $totalBookings = 0;
 // We'll skip it or keep it at 0 for now.
 
 $conn->close();
+
+// Handle report generation
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $report_type = $_POST['report_type'];
+    $start_date = $_POST['start_date'];
+    $end_date = $_POST['end_date'];
+    $format = $_POST['format'];
+    $email = $_POST['email'] ?? null;
+
+    try {
+        // Generate report data
+        $stmt = $pdo->prepare("
+            SELECT 
+                f.name,
+                SUM(ds.quantity_sold) as total_quantity,
+                SUM(ds.total_amount) as total_sales,
+                AVG(f.unit_price) as average_price
+            FROM daily_sales ds
+            JOIN food_items f ON ds.food_item_id = f.id
+            WHERE ds.sale_date BETWEEN ? AND ?
+            GROUP BY f.id
+        ");
+        $stmt->execute([$start_date, $end_date]);
+        $report_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Calculate totals
+        $total_sales = array_sum(array_column($report_data, 'total_sales'));
+        $total_quantity = array_sum(array_column($report_data, 'total_quantity'));
+
+        if ($format === 'csv') {
+            // Generate CSV
+            $filename = "sales_report_{$start_date}_to_{$end_date}.csv";
+            header('Content-Type: text/csv');
+            header('Content-Disposition: attachment; filename="' . $filename . '"');
+            
+            $output = fopen('php://output', 'w');
+            fputcsv($output, ['Item Name', 'Quantity Sold', 'Total Sales', 'Average Price']);
+            
+            foreach ($report_data as $row) {
+                fputcsv($output, [
+                    $row['name'],
+                    $row['total_quantity'],
+                    $row['total_sales'],
+                    $row['average_price']
+                ]);
+            }
+            
+            fputcsv($output, ['', 'Total Quantity', 'Total Sales', '']);
+            fputcsv($output, ['', $total_quantity, $total_sales, '']);
+            
+            fclose($output);
+            exit;
+        } elseif ($format === 'pdf') {
+            // Generate PDF using FPDF
+            require_once('includes/fpdf/fpdf.php');
+            
+            $pdf = new FPDF();
+            $pdf->AddPage();
+            $pdf->SetFont('Arial', 'B', 16);
+            $pdf->Cell(0, 10, "Sales Report: {$start_date} to {$end_date}", 0, 1, 'C');
+            
+            $pdf->SetFont('Arial', 'B', 12);
+            $pdf->Cell(60, 10, 'Item Name', 1);
+            $pdf->Cell(40, 10, 'Quantity Sold', 1);
+            $pdf->Cell(40, 10, 'Total Sales', 1);
+            $pdf->Cell(40, 10, 'Average Price', 1);
+            $pdf->Ln();
+            
+            $pdf->SetFont('Arial', '', 12);
+            foreach ($report_data as $row) {
+                $pdf->Cell(60, 10, $row['name'], 1);
+                $pdf->Cell(40, 10, $row['total_quantity'], 1);
+                $pdf->Cell(40, 10, number_format($row['total_sales'], 2), 1);
+                $pdf->Cell(40, 10, number_format($row['average_price'], 2), 1);
+                $pdf->Ln();
+            }
+            
+            $pdf->SetFont('Arial', 'B', 12);
+            $pdf->Cell(60, 10, 'Totals:', 1);
+            $pdf->Cell(40, 10, $total_quantity, 1);
+            $pdf->Cell(40, 10, number_format($total_sales, 2), 1);
+            $pdf->Cell(40, 10, '', 1);
+            
+            if ($email) {
+                // Save PDF temporarily
+                $temp_file = tempnam(sys_get_temp_dir(), 'report_');
+                $pdf->Output($temp_file, 'F');
+                
+                // Send email with PDF attachment
+                $mail = new PHPMailer\PHPMailer\PHPMailer(true);
+                $mail->isSMTP();
+                $mail->Host = 'smtp.example.com';
+                $mail->SMTPAuth = true;
+                $mail->Username = 'your-email@example.com';
+                $mail->Password = 'your-password';
+                $mail->SMTPSecure = 'tls';
+                $mail->Port = 587;
+                
+                $mail->setFrom('your-email@example.com', 'Cafeteria Management System');
+                $mail->addAddress($email);
+                $mail->Subject = "Sales Report: {$start_date} to {$end_date}";
+                $mail->Body = "Please find attached the sales report for the specified period.";
+                $mail->addAttachment($temp_file, "sales_report_{$start_date}_to_{$end_date}.pdf");
+                
+                $mail->send();
+                unlink($temp_file);
+                
+                $success_message = "Report has been sent to {$email}";
+            } else {
+                $pdf->Output();
+                exit;
+            }
+        }
+    } catch (Exception $e) {
+        $error_message = "Error generating report: " . $e->getMessage();
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -521,6 +642,84 @@ $conn->close();
                 </p>
                 <p><button onclick="window.print()"><i class="fas fa-print"></i> Print</button></p>
             </section>
+
+            <!-- Generate Report Form -->
+            <div class="card">
+                <h2>Generate Report</h2>
+                <?php if (isset($success_message)): ?>
+                    <div class="alert alert-success"><?php echo $success_message; ?></div>
+                <?php endif; ?>
+
+                <?php if (isset($error_message)): ?>
+                    <div class="alert alert-danger"><?php echo $error_message; ?></div>
+                <?php endif; ?>
+
+                <form method="POST" action="">
+                    <div class="form-group">
+                        <label for="report_type">Report Type:</label>
+                        <select id="report_type" name="report_type" required>
+                            <option value="sales">Sales Report</option>
+                            <option value="stock">Stock Report</option>
+                            <option value="profit">Profit Report</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="start_date">Start Date:</label>
+                        <input type="date" id="start_date" name="start_date" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="end_date">End Date:</label>
+                        <input type="date" id="end_date" name="end_date" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="format">Export Format:</label>
+                        <select id="format" name="format" required>
+                            <option value="csv">CSV</option>
+                            <option value="pdf">PDF</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="email">Email (optional):</label>
+                        <input type="email" id="email" name="email" placeholder="Enter email to receive report">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Generate Report</button>
+                </form>
+            </div>
+
+            <!-- Report Preview -->
+            <?php if (isset($report_data)): ?>
+            <div class="card">
+                <h2>Report Preview</h2>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Item Name</th>
+                            <th>Quantity Sold</th>
+                            <th>Total Sales</th>
+                            <th>Average Price</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($report_data as $row): ?>
+                            <tr>
+                                <td><?php echo htmlspecialchars($row['name']); ?></td>
+                                <td><?php echo $row['total_quantity']; ?></td>
+                                <td><?php echo number_format($row['total_sales'], 2); ?></td>
+                                <td><?php echo number_format($row['average_price'], 2); ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <th>Totals:</th>
+                            <th><?php echo $total_quantity; ?></th>
+                            <th><?php echo number_format($total_sales, 2); ?></th>
+                            <th></th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            <?php endif; ?>
         </div>
     </div>
 </body>

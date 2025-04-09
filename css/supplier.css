@@ -1,0 +1,40 @@
+/* Styling for the supplier list */
+.supplier-list {
+    list-style-type: none;
+    padding: 0;
+    margin: 20px 0;
+}
+
+.supplier-list li {
+    background-color: #f9f9f9;
+    margin: 10px 0;
+    padding: 15px;
+    border-radius: 5px;
+    border: 1px solid #ddd;
+    transition: box-shadow 0.3s ease;
+}
+
+.supplier-list li:hover {
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.supplier-list li h3 {
+    margin: 0;
+    color: #333;
+}
+
+.supplier-list li p {
+    margin: 5px 0;
+    color: #777;
+}
+
+/* Styling for the "No suppliers found" message */
+.no-suppliers {
+    text-align: center;
+    color: #777;
+    font-style: italic;
+    padding: 15px;
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+}

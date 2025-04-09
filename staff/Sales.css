@@ -7,6 +7,12 @@
     --success-color: #28a745;
     --warning-color: #ffc107;
     --danger-color: #dc3545;
+    --white: #fff;
+    --medium-gray: #ccc;
+    --light-gray: #f0f0f0;
+    --dark-gray: #666;
+    --card-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    --transition-speed: 0.3s;
 }
 
 * {
@@ -365,8 +371,9 @@ h1 {
     font-size: 0.85rem;
     display: none;
 }
- /* Sidebar fixed to the left */
- .sidebar {
+
+/* Sidebar fixed to the left */
+.sidebar {
     position: fixed;      /* Stays in place when scrolling */
     left: 0;
     top: 0;
@@ -376,42 +383,316 @@ h1 {
     border-right: 1px solid var(--border-color);
     padding: 20px;
     overflow-y: auto;      /* Scroll if content is tall */
-  }
-  
-  /* Sidebar logo */
-  .sidebar .logo {
+}
+
+/* Sidebar logo */
+.sidebar .logo {
     color: var(--primary-color);
     margin-bottom: 20px;
     font-size: 1.2rem;
     font-weight: bold;
-  }
-  
-  /* Sidebar nav */
-  .sidebar ul {
+}
+
+/* Sidebar nav */
+.sidebar ul {
     list-style: none;
     padding: 0;
     margin: 0;
-  }
-  
-  .sidebar ul li {
+}
+
+.sidebar ul li {
     margin-bottom: 10px;
-  }
-  
-  .sidebar ul li a {
+}
+
+.sidebar ul li a {
     color: var(--text-color);
     text-decoration: none;
     display: block;
     padding: 8px 12px;
     border-radius: 4px;
     transition: background-color 0.3s ease;
-  }
-  
-  .sidebar ul li a:hover {
+}
+
+.sidebar ul li a:hover {
     background-color: var(--primary-color);
     color: #fff;
-  }
-  
-  .sidebar ul li.active a {
+}
+
+.sidebar ul li.active a {
     background-color: var(--primary-color);
     color: #fff;
-  }
+}
+
+/* Sales Page Styles */
+.sales-container {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 2rem;
+    margin-top: 2rem;
+}
+
+/* Menu Section */
+.menu-section {
+    background-color: var(--white);
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: var(--card-shadow);
+}
+
+.menu-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.menu-search {
+    width: 300px;
+    padding: 0.8rem;
+    border: 1px solid var(--medium-gray);
+    border-radius: 4px;
+    font-size: 1rem;
+}
+
+.menu-categories {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+}
+
+.category-btn {
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--medium-gray);
+    border-radius: 4px;
+    background-color: var(--white);
+    cursor: pointer;
+    transition: all var(--transition-speed);
+}
+
+.category-btn.active {
+    background-color: var(--primary-color);
+    color: var(--white);
+    border-color: var(--primary-color);
+}
+
+.menu-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.menu-item {
+    background-color: var(--light-gray);
+    padding: 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: transform var(--transition-speed);
+}
+
+.menu-item:hover {
+    transform: translateY(-2px);
+}
+
+.item-image {
+    width: 100%;
+    height: 150px;
+    object-fit: cover;
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+}
+
+.item-name {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.item-price {
+    color: var(--primary-color);
+    font-weight: 500;
+}
+
+.item-stock {
+    font-size: 0.9rem;
+    color: var(--dark-gray);
+}
+
+/* Order Section */
+.order-section {
+    background-color: var(--white);
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: var(--card-shadow);
+}
+
+.order-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.order-items {
+    max-height: 300px;
+    overflow-y: auto;
+    margin-bottom: 1rem;
+}
+
+.order-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--medium-gray);
+}
+
+.item-quantity {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.quantity-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background-color: var(--light-gray);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.quantity-input {
+    width: 40px;
+    text-align: center;
+    border: 1px solid var(--medium-gray);
+    border-radius: 4px;
+    padding: 0.2rem;
+}
+
+.remove-item {
+    color: var(--danger-color);
+    cursor: pointer;
+}
+
+.order-summary {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 2px solid var(--medium-gray);
+}
+
+.summary-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+}
+
+.total-row {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 2px solid var(--medium-gray);
+}
+
+.payment-methods {
+    margin-top: 1.5rem;
+}
+
+.payment-option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+/* Customer Section */
+.customer-section {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 2px solid var(--medium-gray);
+}
+
+.customer-search {
+    width: 100%;
+    padding: 0.8rem;
+    border: 1px solid var(--medium-gray);
+    border-radius: 4px;
+    margin-bottom: 1rem;
+}
+
+.customer-details {
+    background-color: var(--light-gray);
+    padding: 1rem;
+    border-radius: 4px;
+    margin-top: 1rem;
+}
+
+/* Recent Sales Section */
+.recent-sales {
+    margin-top: 2rem;
+}
+
+.sales-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+}
+
+.sales-table th,
+.sales-table td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--medium-gray);
+}
+
+.sales-table th {
+    background-color: var(--light-gray);
+    font-weight: 600;
+}
+
+.sales-table tr:hover {
+    background-color: var(--light-gray);
+}
+
+/* Responsive Styles */
+@media (max-width: 1024px) {
+    .sales-container {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .menu-search {
+        width: 100%;
+    }
+
+    .menu-categories {
+        flex-wrap: wrap;
+    }
+
+    .menu-grid {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    }
+}
+
+/* Print Styles */
+@media print {
+    .sidebar,
+    .menu-section,
+    .customer-section {
+        display: none;
+    }
+
+    .order-section {
+        width: 100%;
+        box-shadow: none;
+    }
+
+    .btn {
+        display: none;
+    }
+}

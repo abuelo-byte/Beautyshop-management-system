@@ -3,7 +3,7 @@
 $servername = "localhost";
 $username = "root"; // Default username for localhost
 $password = ""; // Default password for localhost
-$dbname = "beautyshop";
+$dbname = "cafeteria-management-system";
 
 // Create connection
 $conn = new mysqli($servername, $username, $password, $dbname);

@@ -12,7 +12,7 @@ if (!isset($_SESSION['user_id'])) {
 $servername = "localhost";
 $username = "root";
 $password = "";
-$dbname = "beautyshop"; // Adjust if needed
+$dbname = "cafeteria-management-system";
 
 $conn = new mysqli($servername, $username, $password, $dbname);
 if ($conn->connect_error) {

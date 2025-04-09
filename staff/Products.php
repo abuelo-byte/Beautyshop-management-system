@@ -5,7 +5,7 @@
 $servername = "localhost";
 $username = "root";
 $password = "";
-$dbname = "beautyshop"; // Update to your actual DB name
+$dbname = "cafeteria-management-system";
 
 $conn = new mysqli($servername, $username, $password, $dbname);
 if ($conn->connect_error) {
@@ -29,8 +29,8 @@ if ($salesRes && $salesRes->num_rows > 0) {
         $cartData = json_decode($saleRow['cart_data'], true);
         if (is_array($cartData)) {
             foreach ($cartData as $item) {
-                // Subtract 'quantity' from product stock by 'id'
-                $upd = $conn->prepare("UPDATE beautyshop SET stock = stock - ? WHERE id = ?");
+                // Subtract 'quantity' from food item stock by 'id'
+                $upd = $conn->prepare("UPDATE stock_inventory SET quantity = quantity - ? WHERE food_item_id = ?");
                 $upd->bind_param("ii", $item['quantity'], $item['id']);
                 $upd->execute();
             }
@@ -43,678 +43,278 @@ if ($salesRes && $salesRes->num_rows > 0) {
 }
 
 // -----------------------------------------
-// 2) Create Table if not exists for products
+// 2) Create Tables if not exists
 // -----------------------------------------
-$createTableQuery = "CREATE TABLE IF NOT EXISTS beautyshop (
+$createFoodItemsTable = "CREATE TABLE IF NOT EXISTS food_items (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
-    category VARCHAR(255) NOT NULL,
-    subcategory VARCHAR(255) DEFAULT '',
-    company VARCHAR(255) NOT NULL,
-    stock INT NOT NULL,
-    price DECIMAL(10,2) NOT NULL,
-    image VARCHAR(255) NOT NULL
+    description TEXT,
+    category VARCHAR(100),
+    unit_price DECIMAL(10,2) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )";
-if (!$conn->query($createTableQuery)) {
-    die("Table creation failed: " . $conn->error);
+
+$createStockInventoryTable = "CREATE TABLE IF NOT EXISTS stock_inventory (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    food_item_id INT,
+    quantity INT NOT NULL,
+    unit VARCHAR(50) NOT NULL,
+    min_stock_level INT NOT NULL,
+    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (food_item_id) REFERENCES food_items(id)
+)";
+
+if (!$conn->query($createFoodItemsTable)) {
+    die("Food items table creation failed: " . $conn->error);
+}
+
+if (!$conn->query($createStockInventoryTable)) {
+    die("Stock inventory table creation failed: " . $conn->error);
 }
 
 // -----------------------------------------
-// 3) Helper function to get default images
+// 3) Handle form submission for adding new food item
 // -----------------------------------------
-function getDefaultImage($category, $subcategory = "")
-{
-    // Common images by category
-    $defaultImages = [
-        "hair" => "images/Braid.jpeg",
-        "hairfood" => "images/naturaloils.jpeg",
-        "oils" => "images/oils.jpeg",
-        "gels" => "images/gel.jpeg",
-        "treatment" => "images/treatment.jpeg",
-        "wax" => "images/wax.jpeg",
-        "shampoos" => "images/shampoos.jpeg",
-        "conditioners" => "images/conditioners.jpeg",
-        "dyes" => "images/dyes.jpeg",
-        "relaxers" => "images/relaxers.jpeg",
-        "hairsprays" => "images/hairspray.jpeg",
-        "toiletries" => "images/toiletries.jpeg",
-        "body-lotions" => "images/lotions.jpg",
-        "sprays" => "images/sprays.jpg",
-        "hair-clips" => "images/clips.jpg"
-    ];
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_food_item'])) {
+    $name = $conn->real_escape_string($_POST['name']);
+    $description = $conn->real_escape_string($_POST['description']);
+    $category = $conn->real_escape_string($_POST['category']);
+    $unit_price = floatval($_POST['unit_price']);
+    $quantity = intval($_POST['quantity']);
+    $unit = $conn->real_escape_string($_POST['unit']);
+    $min_stock_level = intval($_POST['min_stock_level']);
 
-    // Hair subcategories
-    $hairSubImages = [
-        "braids" => "images/Braid.jpeg",
-        "general" => "images/general.jpeg",
-        "extensions" => "images/hair-extensions.png",
-        "sewing-threads" => "images/hair-sewing-threads.png",
-        "weaves" => "images/hair-weaves.png"
-    ];
+    // Start transaction
+    $conn->begin_transaction();
 
-    // Toiletries subcategories
-    $toiletriesSubImages = [
-        "tissues" => "images/tissues.jpg",
-        "sanitary-pads" => "images/pads.jpg",
-        "liners" => "images/liners.jpg",
-        "wipes" => "images/wipes.jpg",
-        "hair-removers-shavers" => "images/hair-removers-shavers.jpg",
-        "shower-gels" => "images/shower_gel.jpg",
-        "liquid-detergents" => "images/liquid-detergents.jpg",
-        "bleach" => "images/bleach.jpg",
-        "powder-soap" => "images/powder.jpg"
-    ];
-
-    // If Hair subcategory
-    if ($category === "hair" && $subcategory && isset($hairSubImages[$subcategory])) {
-        return $hairSubImages[$subcategory];
-    }
-    // If Toiletries subcategory
-    if ($category === "toiletries" && $subcategory && isset($toiletriesSubImages[$subcategory])) {
-        return $toiletriesSubImages[$subcategory];
-    }
-
-    // Fallback
-    return $defaultImages[$category] ?? "images/default.png";
-}
-
-// -----------------------------------------
-// 4) Process New Product (Create)
-// -----------------------------------------
-if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['new_product'])) {
-    $name = trim($_POST['product_name'] ?? '');
-    $category = trim($_POST['product_category'] ?? '');
-    $company = trim($_POST['product_company'] ?? '');
-    $stock = intval($_POST['product_stock'] ?? 0);
-    $price = floatval($_POST['product_price'] ?? 0);
-    $subcategory = "";
-
-    if ($category === "hair" && isset($_POST['product_subcategory'])) {
-        $subcategory = trim($_POST['product_subcategory']);
-    } elseif ($category === "toiletries" && isset($_POST['product_subcategory'])) {
-        $subcategory = trim($_POST['product_subcategory']);
-    }
-
-    if ($name && $category && $company) {
-        $image = getDefaultImage($category, $subcategory);
-
-        $stmt = $conn->prepare("INSERT INTO beautyshop (name, category, subcategory, company, stock, price, image)
-                            VALUES (?, ?, ?, ?, ?, ?, ?)");
-        $stmt->bind_param("ssssids", $name, $category, $subcategory, $company, $stock, $price, $image);
+    try {
+        // Insert food item
+        $stmt = $conn->prepare("INSERT INTO food_items (name, description, category, unit_price) VALUES (?, ?, ?, ?)");
+        $stmt->bind_param("sssd", $name, $description, $category, $unit_price);
         $stmt->execute();
-        $stmt->close();
-    }
-    header("Location: " . $_SERVER['PHP_SELF']);
-    exit;
-}
+        $food_item_id = $conn->insert_id;
 
-// -----------------------------------------
-// 5) Process Delete
-// -----------------------------------------
-if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['delete_product'])) {
-    $deleteId = intval($_POST['delete_id'] ?? 0);
-    if ($deleteId > 0) {
-        $stmt = $conn->prepare("DELETE FROM beautyshop WHERE id = ?");
-        $stmt->bind_param("i", $deleteId);
+        // Insert stock information
+        $stmt = $conn->prepare("INSERT INTO stock_inventory (food_item_id, quantity, unit, min_stock_level) VALUES (?, ?, ?, ?)");
+        $stmt->bind_param("iisi", $food_item_id, $quantity, $unit, $min_stock_level);
         $stmt->execute();
-        $stmt->close();
+
+        $conn->commit();
+        $success_message = "Food item added successfully!";
+    } catch (Exception $e) {
+        $conn->rollback();
+        $error_message = "Error adding food item: " . $e->getMessage();
     }
-    header("Location: " . $_SERVER['PHP_SELF']);
-    exit;
 }
 
 // -----------------------------------------
-// 6) Process Edit (Update)
+// 4) Fetch all food items with stock information
 // -----------------------------------------
-if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['edit_product'])) {
-    $editId = intval($_POST['edit_id'] ?? 0);
-    $editName = trim($_POST['edit_name'] ?? '');
-    $editCategory = trim($_POST['edit_category'] ?? '');
-    $editCompany = trim($_POST['edit_company'] ?? '');
-    $editStock = intval($_POST['edit_stock'] ?? 0);
-    $editPrice = floatval($_POST['edit_price'] ?? 0);
-    $editSubcat = "";
-
-    if ($editCategory === "hair" && isset($_POST['edit_subcategory'])) {
-        $editSubcat = trim($_POST['edit_subcategory']);
-    } elseif ($editCategory === "toiletries" && isset($_POST['edit_subcategory'])) {
-        $editSubcat = trim($_POST['edit_subcategory']);
-    }
-
-    if ($editId > 0 && $editName && $editCategory && $editCompany) {
-        $newImage = getDefaultImage($editCategory, $editSubcat);
-
-        $stmt = $conn->prepare("UPDATE beautyshop
-                            SET name = ?, category = ?, subcategory = ?, company = ?, stock = ?, price = ?, image = ?
-                            WHERE id = ?");
-        $stmt->bind_param("ssssidsi", $editName, $editCategory, $editSubcat, $editCompany, $editStock, $editPrice, $newImage, $editId);
-        $stmt->execute();
-        $stmt->close();
-    }
-    header("Location: " . $_SERVER['PHP_SELF']);
-    exit;
-}
-
-// -----------------------------------------
-// 7) Fetch All Products
-// -----------------------------------------
-$sql = "SELECT * FROM beautyshop";
+$sql = "SELECT fi.*, si.quantity, si.unit, si.min_stock_level 
+        FROM food_items fi 
+        LEFT JOIN stock_inventory si ON fi.id = si.food_item_id 
+        ORDER BY fi.name";
 $result = $conn->query($sql);
-$products = [];
+$food_items = [];
 if ($result && $result->num_rows > 0) {
     while ($row = $result->fetch_assoc()) {
-        $products[] = $row;
+        $food_items[] = $row;
     }
 }
-$products_json = json_encode($products);
 
 $conn->close();
 ?>
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-    <title>Beauty Shop Inventory Management</title>
-    <link rel="stylesheet" href="products.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Food Items Management</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="Staff.css">
 </head>
-
 <body>
-
     <!-- SIDEBAR -->
-    <aside class="sidebar">
-        <h2 class="logo">abuelo jua code</h2>
+    <aside class="sidebar" id="sidebar">
+        <div class="logo">
+            <i class="fas fa-utensils"></i>
+            <span class="logo-text">Cafeteria Management</span>
+        </div>
+        <button class="toggle-sidebar" id="toggleSidebar">
+            <i class="fas fa-chevron-left" id="toggleIcon"></i>
+        </button>
         <ul>
-            <li><a href="Home.php">Home</a></li>
-            <li class="active"><a href="Products.php">Products</a></li>
-            <li><a href="Purchases.php">Purchases</a></li>
-            <li><a href="Sales.php">Sales</a></li>
-            <li><a href="#">Customers</a></li>
+            <li><a href="Home.php">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span class="link-text">Dashboard</span>
+                </a></li>
+            <li><a href="#" class="active">
+                    <i class="fas fa-hamburger"></i>
+                    <span class="link-text">Food Items</span>
+                </a></li>
+            <li><a href="Purchases.php">
+                    <i class="fas fa-shopping-cart"></i>
+                    <span class="link-text">Purchases</span>
+                </a></li>
+            <li><a href="Sales.php">
+                    <i class="fas fa-cash-register"></i>
+                    <span class="link-text">Sales</span>
+                </a></li>
+            <li><a href="customers.php">
+                    <i class="fas fa-users"></i>
+                    <span class="link-text">Customers</span>
+                </a></li>
+            <li><a href="supplier.php">
+                    <i class="fas fa-truck"></i>
+                    <span class="link-text">Suppliers</span>
+                </a></li>
+            <li><a href="Settings.php">
+                    <i class="fas fa-cog"></i>
+                    <span class="link-text">Settings</span>
+                </a></li>
+            <li><a href="/inventory_management/logout.php">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span class="link-text">Logout</span>
+                </a></li>
         </ul>
     </aside>
 
-    <!-- MAIN HEADER -->
+    <!-- MAIN CONTENT -->
+    <div class="main-content" id="mainContent">
     <header>
-        <h1>Beauty Shop Inventory Management</h1>
+            <h1>Food Items Management</h1>
     </header>
 
-    <!-- MAIN CONTENT CONTAINER -->
-    <div class="container">
+        <?php if (isset($success_message)): ?>
+            <div class="alert alert-success"><?php echo $success_message; ?></div>
+        <?php endif; ?>
 
-        <!-- Search / Filter -->
-        <div class="search-container">
-            <div class="search-box">
-                <input type="text" id="search-input" placeholder="Search products...">
+        <?php if (isset($error_message)): ?>
+            <div class="alert alert-danger"><?php echo $error_message; ?></div>
+        <?php endif; ?>
+
+        <!-- Add New Food Item Form -->
+        <div class="card">
+            <h2>Add New Food Item</h2>
+            <form method="POST" action="">
+                <div class="form-group">
+                    <label for="name">Name:</label>
+                    <input type="text" id="name" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="description">Description:</label>
+                    <textarea id="description" name="description"></textarea>
             </div>
-            <div class="category-filter">
-                <select id="category-select">
-                    <option value="">All Categories</option>
-                    <option value="hair">Hair</option>
-                    <option value="hairfood">Hair Food</option>
-                    <option value="oils">Oils</option>
-                    <option value="gels">Gels</option>
-                    <option value="treatment">Treatment</option>
-                    <option value="wax">Wax</option>
-                    <option value="shampoos">Shampoos</option>
-                    <option value="conditioners">Conditioners</option>
-                    <option value="dyes">Dyes</option>
-                    <option value="relaxers">Relaxers</option>
-                    <option value="hairsprays">Hair Sprays</option>
-                    <option value="toiletries">Toiletries</option>
-                    <option value="body-lotions">Body Lotions</option>
-                    <option value="sprays">Sprays</option>
-                    <option value="hair-clips">Hair Clips</option>
+                <div class="form-group">
+                    <label for="category">Category:</label>
+                    <select id="category" name="category" required>
+                        <option value="main-course">Main Course</option>
+                        <option value="side-dish">Side Dish</option>
+                        <option value="beverage">Beverage</option>
+                        <option value="dessert">Dessert</option>
+                        <option value="snack">Snack</option>
                 </select>
             </div>
-            <div class="company-filter">
-                <input type="text" id="company-input" placeholder="Filter by company/brand...">
+                <div class="form-group">
+                    <label for="unit_price">Unit Price (Ksh):</label>
+                    <input type="number" id="unit_price" name="unit_price" step="0.01" required>
             </div>
+                <div class="form-group">
+                    <label for="quantity">Initial Quantity:</label>
+                    <input type="number" id="quantity" name="quantity" required>
+        </div>
+                <div class="form-group">
+                    <label for="unit">Unit:</label>
+                    <select id="unit" name="unit" required>
+                        <option value="piece">Piece</option>
+                        <option value="plate">Plate</option>
+                        <option value="cup">Cup</option>
+                        <option value="bottle">Bottle</option>
+                        <option value="kg">Kilogram</option>
+                        <option value="g">Gram</option>
+                        <option value="l">Liter</option>
+                        <option value="ml">Milliliter</option>
+                    </select>
+            </div>
+                <div class="form-group">
+                    <label for="min_stock_level">Minimum Stock Level:</label>
+                    <input type="number" id="min_stock_level" name="min_stock_level" required>
+            </div>
+                <button type="submit" name="add_food_item" class="btn btn-primary">Add Food Item</button>
+            </form>
         </div>
 
-        <!-- Category Tabs -->
-        <div class="categories-section">
-            <div class="category-tabs">
-                <button class="category-tab active" data-category="all">All Products</button>
-                <button class="category-tab" data-category="hair">Hair</button>
-                <button class="category-tab" data-category="hairfood">Hair Food</button>
-                <button class="category-tab" data-category="oils">Oils</button>
-                <button class="category-tab" data-category="gels">Gels</button>
-                <button class="category-tab" data-category="treatment">Treatment</button>
-                <button class="category-tab" data-category="wax">Wax</button>
-                <button class="category-tab" data-category="shampoos">Shampoos</button>
-                <button class="category-tab" data-category="conditioners">Conditioners</button>
-                <button class="category-tab" data-category="dyes">Dyes</button>
-                <button class="category-tab" data-category="relaxers">Relaxers</button>
-                <button class="category-tab" data-category="hairsprays">Hair Sprays</button>
-                <button class="category-tab" data-category="toiletries">Toiletries</button>
-                <button class="category-tab" data-category="body-lotions">Body Lotions</button>
-                <button class="category-tab" data-category="sprays">Sprays</button>
-                <button class="category-tab" data-category="hair-clips">Hair Clips</button>
-            </div>
-
-            <!-- Hair Subcategories -->
-            <div id="hair-subcategories" class="subcategory-container" style="display: none;">
-                <button class="subcategory-button active" data-subcategory="all">All Hair</button>
-                <button class="subcategory-button" data-subcategory="braids">Braids</button>
-                <button class="subcategory-button" data-subcategory="general">General</button>
-                <button class="subcategory-button" data-subcategory="extensions">Extensions</button>
-                <button class="subcategory-button" data-subcategory="sewing-threads">Sewing Threads</button>
-                <button class="subcategory-button" data-subcategory="weaves">Weaves</button>
-            </div>
-
-            <!-- Toiletries Subcategories -->
-            <div id="toiletries-subcategories" class="subcategory-container" style="display: none;">
-                <button class="subcategory-button active" data-subcategory="all">All Toiletries</button>
-                <button class="subcategory-button" data-subcategory="tissues">Tissues</button>
-                <button class="subcategory-button" data-subcategory="sanitary-pads">Sanitary Pads</button>
-                <button class="subcategory-button" data-subcategory="liners">Liners</button>
-                <button class="subcategory-button" data-subcategory="wipes">Wipes</button>
-                <button class="subcategory-button" data-subcategory="hair-removers-shavers">Hair
-                    Removers/Shavers</button>
-                <button class="subcategory-button" data-subcategory="shower-gels">Shower Gels</button>
-                <button class="subcategory-button" data-subcategory="liquid-detergents">Liquid Detergents</button>
-                <button class="subcategory-button" data-subcategory="bleach">Bleach</button>
-                <button class="subcategory-button" data-subcategory="powder-soap">Powder Soap</button>
-            </div>
-        </div>
-
-        <!-- Add Product Button -->
-        <button class="add-product-btn" id="show-add-product-btn">+ Add New Product</button>
-
-        <!-- New Product Form -->
-        <form id="new-product-form" method="post" action="" style="display: none;">
-            <h2>Add New Product</h2>
-            <input type="hidden" name="new_product" value="1">
-            <div>
-                <label for="product-name">Product Name:</label>
-                <input type="text" id="product-name" name="product_name" required>
-            </div>
-            <div>
-                <label for="product-category">Category:</label>
-                <select id="product-category" name="product_category" required>
-                    <option value="hair">Hair</option>
-                    <option value="hairfood">Hair Food</option>
-                    <option value="oils">Oils</option>
-                    <option value="gels">Gels</option>
-                    <option value="treatment">Treatment</option>
-                    <option value="wax">Wax</option>
-                    <option value="shampoos">Shampoos</option>
-                    <option value="conditioners">Conditioners</option>
-                    <option value="dyes">Dyes</option>
-                    <option value="relaxers">Relaxers</option>
-                    <option value="hairsprays">Hair Sprays</option>
-                    <option value="toiletries">Toiletries</option>
-                    <option value="body-lotions">Body Lotions</option>
-                    <option value="sprays">Sprays</option>
-                    <option value="hair-clips">Hair Clips</option>
-                </select>
-            </div>
-            <!-- Hair subcategory for new product -->
-            <div id="hair-subcategory-form" style="display: none;">
-                <label for="product-subcategory">Hair Subcategory:</label>
-                <select id="product-subcategory" name="product_subcategory">
-                    <option value="braids">Braids</option>
-                    <option value="general">General</option>
-                    <option value="extensions">Extensions</option>
-                    <option value="sewing-threads">Sewing Threads</option>
-                    <option value="weaves">Weaves</option>
-                </select>
-            </div>
-            <!-- Toiletries subcategory for new product -->
-            <div id="toiletries-subcategory-form" style="display: none;">
-                <label for="toiletries-subcat-select">Toiletries Subcategory:</label>
-                <select id="toiletries-subcat-select" name="product_subcategory">
-                    <option value="tissues">Tissues</option>
-                    <option value="sanitary-pads">Sanitary Pads</option>
-                    <option value="liners">Liners</option>
-                    <option value="wipes">Wipes</option>
-                    <option value="hair-removers-shavers">Hair Removers/Shavers</option>
-                    <option value="shower-gels">Shower Gels</option>
-                    <option value="liquid-detergents">Liquid Detergents</option>
-                    <option value="bleach">Bleach</option>
-                    <option value="powder-soap">Powder Soap</option>
-                </select>
-            </div>
-            <div>
-                <label for="product-company">Company/Brand:</label>
-                <input type="text" id="product-company" name="product_company" required>
-            </div>
-            <div>
-                <label for="product-stock">Stock Quantity:</label>
-                <input type="number" id="product-stock" name="product_stock" min="0" required>
-            </div>
-            <div>
-                <label for="product-price">Price:</label>
-                <input type="number" id="product-price" name="product_price" step="0.01" min="0" required>
-            </div>
-            <div>
-                <button type="submit">Add Product</button>
-                <button type="button" id="cancel-add-product">Cancel</button>
-            </div>
-        </form>
-
-        <!-- Edit Product Form -->
-        <form id="edit-product-form" method="post" action="" style="display: none;">
-            <h2>Edit Product</h2>
-            <input type="hidden" name="edit_product" value="1">
-            <input type="hidden" name="edit_id" id="edit-id">
-            <div>
-                <label for="edit-name">Product Name:</label>
-                <input type="text" id="edit-name" name="edit_name" required>
-            </div>
-            <div>
-                <label for="edit-category">Category:</label>
-                <select id="edit-category" name="edit_category" required>
-                    <option value="hair">Hair</option>
-                    <option value="hairfood">Hair Food</option>
-                    <option value="oils">Oils</option>
-                    <option value="gels">Gels</option>
-                    <option value="treatment">Treatment</option>
-                    <option value="wax">Wax</option>
-                    <option value="shampoos">Shampoos</option>
-                    <option value="conditioners">Conditioners</option>
-                    <option value="dyes">Dyes</option>
-                    <option value="relaxers">Relaxers</option>
-                    <option value="hairsprays">Hair Sprays</option>
-                    <option value="toiletries">Toiletries</option>
-                    <option value="body-lotions">Body Lotions</option>
-                    <option value="sprays">Sprays</option>
-                    <option value="hair-clips">Hair Clips</option>
-                </select>
-            </div>
-            <!-- Hair subcategory for edit form -->
-            <div id="edit-hair-subcategory-form" style="display: none;">
-                <label for="edit-subcategory">Hair Subcategory:</label>
-                <select id="edit-subcategory" name="edit_subcategory">
-                    <option value="braids">Braids</option>
-                    <option value="general">General</option>
-                    <option value="extensions">Extensions</option>
-                    <option value="sewing-threads">Sewing Threads</option>
-                    <option value="weaves">Weaves</option>
-                </select>
-            </div>
-            <!-- Toiletries subcategory for edit form -->
-            <div id="edit-toiletries-subcat-form" style="display: none;">
-                <label for="edit-toiletries-subcat">Toiletries Subcategory:</label>
-                <select id="edit-toiletries-subcat" name="edit_subcategory">
-                    <option value="tissues">Tissues</option>
-                    <option value="sanitary-pads">Sanitary Pads</option>
-                    <option value="liners">Liners</option>
-                    <option value="wipes">Wipes</option>
-                    <option value="hair-removers-shavers">Hair Removers/Shavers</option>
-                    <option value="shower-gels">Shower Gels</option>
-                    <option value="liquid-detergents">Liquid Detergents</option>
-                    <option value="bleach">Bleach</option>
-                    <option value="powder-soap">Powder Soap</option>
-                </select>
-            </div>
-            <div>
-                <label for="edit-company">Company/Brand:</label>
-                <input type="text" id="edit-company" name="edit_company" required>
-            </div>
-            <div>
-                <label for="edit-stock">Stock Quantity:</label>
-                <input type="number" id="edit-stock" name="edit_stock" min="0" required>
-            </div>
-            <div>
-                <label for="edit-price">Price:</label>
-                <input type="number" id="edit-price" name="edit_price" step="0.01" min="0" required>
-            </div>
-            <div>
-                <button type="submit">Update Product</button>
-                <button type="button" id="cancel-edit-product">Cancel</button>
-            </div>
-        </form>
-
-        <!-- Hidden Delete Form -->
-        <form id="delete-form" method="post" action="" style="display: none;">
-            <input type="hidden" name="delete_product" value="1">
-            <input type="hidden" name="delete_id" id="delete-id">
-        </form>
-
-        <!-- Product Grid -->
-        <div class="products-grid" id="products-container">
-            <!-- Products will be rendered here by JavaScript -->
+        <!-- Food Items List -->
+        <div class="card">
+            <h2>Food Items List</h2>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Category</th>
+                        <th>Unit Price</th>
+                        <th>Current Stock</th>
+                        <th>Unit</th>
+                        <th>Min Stock</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($food_items as $item): ?>
+                        <tr>
+                            <td><?php echo htmlspecialchars($item['name']); ?></td>
+                            <td><?php echo htmlspecialchars($item['category']); ?></td>
+                            <td>Ksh <?php echo number_format($item['unit_price'], 2); ?></td>
+                            <td><?php echo $item['quantity']; ?></td>
+                            <td><?php echo htmlspecialchars($item['unit']); ?></td>
+                            <td><?php echo $item['min_stock_level']; ?></td>
+                            <td>
+                                <?php if ($item['quantity'] <= $item['min_stock_level']): ?>
+                                    <span class="badge badge-warning">Low Stock</span>
+                                <?php else: ?>
+                                    <span class="badge badge-success">In Stock</span>
+                                <?php endif; ?>
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-info" onclick="editItem(<?php echo $item['id']; ?>)">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-sm btn-danger" onclick="deleteItem(<?php echo $item['id']; ?>)">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
         </div>
     </div>
 
+    <!-- SIDEBAR TOGGLE SCRIPT -->
     <script>
-        // Products from PHP
-        let products = <?php echo $products_json; ?>;
+        document.addEventListener('DOMContentLoaded', function () {
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.getElementById('mainContent');
+            const toggleBtn = document.getElementById('toggleSidebar');
+            const toggleIcon = document.getElementById('toggleIcon');
 
-        // Track currently selected category & subcategory
-        let selectedCategory = 'all';
-        let selectedSubcategory = 'all';
+            toggleBtn.addEventListener('click', function () {
+                sidebar.classList.toggle('sidebar-collapsed');
 
-        // RENDER
-        function renderProducts(productsList) {
-            const container = document.getElementById('products-container');
-            container.innerHTML = '';
-
-            if (!productsList.length) {
-                container.innerHTML = '<div class="no-products-message">No products found matching your criteria.</div>';
-                return;
-            }
-
-            productsList.forEach(product => {
-                const stockStatus = product.stock > 10 ? 'in-stock'
-                    : (product.stock > 0 ? 'low-stock' : 'out-of-stock');
-                const stockText = product.stock > 10 ? 'In Stock'
-                    : (product.stock > 0 ? 'Low Stock' : 'Out of Stock');
-
-                const card = document.createElement('div');
-                card.className = 'product-card';
-                card.innerHTML = `
-          <div class="product-image">
-            <img src="${product.image}" alt="${product.name}">
-          </div>
-          <div class="product-details">
-            <div class="product-title">${product.name}</div>
-            <div class="product-company">${product.company}</div>
-            <div class="product-price">ksh${parseFloat(product.price).toFixed(2)}</div>
-            <div class="stock-status ${stockStatus}">${stockText}</div>
-            <div class="action-buttons">
-              <button class="edit-btn" data-id="${product.id}">Edit</button>
-              <button class="delete-btn" data-id="${product.id}">Delete</button>
-            </div>
-          </div>
-        `;
-                container.appendChild(card);
-            });
-        }
-
-        // FILTER
-        function filterProducts() {
-            const searchQuery = document.getElementById('search-input').value.toLowerCase();
-            const categorySelect = document.getElementById('category-select').value;
-            const companyFilter = document.getElementById('company-input').value.toLowerCase();
-
-            const filtered = products.filter(prod => {
-                const matchesSearch = prod.name.toLowerCase().includes(searchQuery);
-                const matchesCategoryTab = (selectedCategory === 'all' || prod.category === selectedCategory);
-                const matchesCategorySelect = (categorySelect === '' || prod.category === categorySelect);
-
-                let matchesSubcat = true;
-                if (selectedCategory === 'hair') {
-                    matchesSubcat = (selectedSubcategory === 'all' || prod.subcategory === selectedSubcategory);
-                } else if (selectedCategory === 'toiletries') {
-                    matchesSubcat = (selectedSubcategory === 'all' || prod.subcategory === selectedSubcategory);
+                if (sidebar.classList.contains('sidebar-collapsed')) {
+                    toggleIcon.classList.replace('fa-chevron-left', 'fa-chevron-right');
+                } else {
+                    toggleIcon.classList.replace('fa-chevron-right', 'fa-chevron-left');
                 }
-
-                const matchesCompany = prod.company.toLowerCase().includes(companyFilter);
-
-                return matchesSearch && matchesCategoryTab && matchesCategorySelect && matchesSubcat && matchesCompany;
             });
 
-            renderProducts(filtered);
-        }
-
-        // INITIAL RENDER
-        renderProducts(products);
-
-        // LISTENERS for search, category, company filter
-        document.getElementById('search-input').addEventListener('input', filterProducts);
-        document.getElementById('category-select').addEventListener('change', filterProducts);
-        document.getElementById('company-input').addEventListener('input', filterProducts);
-
-        // CATEGORY TABS
-        const catTabs = document.querySelectorAll('.category-tab');
-        catTabs.forEach(tab => {
-            tab.addEventListener('click', () => {
-                catTabs.forEach(t => t.classList.remove('active'));
-                tab.classList.add('active');
-                selectedCategory = tab.dataset.category;
-
-                // Show hair subcategories if category=hair
-                if (selectedCategory === 'hair') {
-                    document.getElementById('hair-subcategories').style.display = 'flex';
-                    document.getElementById('toiletries-subcategories').style.display = 'none';
-
-                    selectedSubcategory = 'all';
-                    document.querySelectorAll('#hair-subcategories .subcategory-button').forEach(b => b.classList.remove('active'));
-                    document.querySelector('#hair-subcategories .subcategory-button[data-subcategory="all"]').classList.add('active');
-                }
-                // Show toiletries subcategories if category=toiletries
-                else if (selectedCategory === 'toiletries') {
-                    document.getElementById('hair-subcategories').style.display = 'none';
-                    document.getElementById('toiletries-subcategories').style.display = 'flex';
-
-                    selectedSubcategory = 'all';
-                    document.querySelectorAll('#toiletries-subcategories .subcategory-button').forEach(b => b.classList.remove('active'));
-                    document.querySelector('#toiletries-subcategories .subcategory-button[data-subcategory="all"]').classList.add('active');
-                }
-                // Hide both if it's any other category
-                else {
-                    document.getElementById('hair-subcategories').style.display = 'none';
-                    document.getElementById('toiletries-subcategories').style.display = 'none';
-                    selectedSubcategory = 'all';
-                }
-
-                filterProducts();
-            });
-        });
-
-        // HAIR SUBCATEGORY BUTTONS
-        const hairSubButtons = document.querySelectorAll('#hair-subcategories .subcategory-button');
-        hairSubButtons.forEach(btn => {
-            btn.addEventListener('click', () => {
-                hairSubButtons.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                selectedSubcategory = btn.dataset.subcategory;
-                filterProducts();
-            });
-        });
-
-        // TOILETRIES SUBCATEGORY BUTTONS
-        const toiletriesSubButtons = document.querySelectorAll('#toiletries-subcategories .subcategory-button');
-        toiletriesSubButtons.forEach(btn => {
-            btn.addEventListener('click', () => {
-                toiletriesSubButtons.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                selectedSubcategory = btn.dataset.subcategory;
-                filterProducts();
-            });
-        });
-
-        // "ADD NEW PRODUCT" FORM
-        const addProductBtn = document.getElementById('show-add-product-btn');
-        const newProductForm = document.getElementById('new-product-form');
-        const cancelAddBtn = document.getElementById('cancel-add-product');
-        addProductBtn.addEventListener('click', () => {
-            const catSelect = document.getElementById('product-category');
-            if (selectedCategory !== 'all') {
-                catSelect.value = selectedCategory;
-            }
-            toggleNewSubcat();
-            newProductForm.style.display = 'block';
-        });
-        cancelAddBtn.addEventListener('click', () => {
-            newProductForm.style.display = 'none';
-        });
-
-        // EDIT PRODUCT FORM
-        const editProductForm = document.getElementById('edit-product-form');
-        const cancelEditBtn = document.getElementById('cancel-edit-product');
-        const editCategorySel = document.getElementById('edit-category');
-        cancelEditBtn.addEventListener('click', () => {
-            editProductForm.style.display = 'none';
-        });
-        editCategorySel.addEventListener('change', () => {
-            toggleEditSubcat();
-        });
-
-        // DELETE FORM
-        const deleteForm = document.getElementById('delete-form');
-
-        // GLOBAL CLICK for Edit/Delete
-        document.addEventListener('click', e => {
-            // DELETE
-            if (e.target.classList.contains('delete-btn')) {
-                const id = e.target.dataset.id;
-                document.getElementById('delete-id').value = id;
-                deleteForm.submit();
-            }
-
-            // EDIT
-            if (e.target.classList.contains('edit-btn')) {
-                const id = parseInt(e.target.dataset.id, 10);
-                const product = products.find(p => p.id === id);
-                if (!product) return;
-
-                document.getElementById('edit-id').value = product.id;
-                document.getElementById('edit-name').value = product.name;
-                document.getElementById('edit-category').value = product.category;
-                document.getElementById('edit-company').value = product.company;
-                document.getElementById('edit-stock').value = product.stock;
-                document.getElementById('edit-price').value = product.price;
-
-                toggleEditSubcat();
-                if (product.category === 'hair' && product.subcategory) {
-                    document.getElementById('edit-subcategory').value = product.subcategory;
-                } else if (product.category === 'toiletries' && product.subcategory) {
-                    document.getElementById('edit-toiletries-subcat').value = product.subcategory;
-                }
-
-                editProductForm.style.display = 'block';
+            // For mobile responsiveness
+            if (window.innerWidth <= 768) {
+                sidebar.classList.add('sidebar-collapsed');
+                toggleIcon.classList.replace('fa-chevron-left', 'fa-chevron-right');
             }
         });
-
-        // Toggle subcategory for NEW
-        document.getElementById('product-category').addEventListener('change', toggleNewSubcat);
-        function toggleNewSubcat() {
-            const cat = document.getElementById('product-category').value;
-            const hair = document.getElementById('hair-subcategory-form');
-            const toils = document.getElementById('toiletries-subcategory-form');
-            if (cat === 'hair') {
-                hair.style.display = 'block';
-                toils.style.display = 'none';
-            } else if (cat === 'toiletries') {
-                hair.style.display = 'none';
-                toils.style.display = 'block';
-            } else {
-                hair.style.display = 'none';
-                toils.style.display = 'none';
-            }
-        }
-
-        // Toggle subcategory for EDIT
-        function toggleEditSubcat() {
-            const cat = document.getElementById('edit-category').value;
-            const hair = document.getElementById('edit-hair-subcategory-form');
-            const toils = document.getElementById('edit-toiletries-subcat-form');
-            if (cat === 'hair') {
-                hair.style.display = 'block';
-                toils.style.display = 'none';
-            } else if (cat === 'toiletries') {
-                hair.style.display = 'none';
-                toils.style.display = 'block';
-            } else {
-                hair.style.display = 'none';
-                toils.style.display = 'none';
-            }
-        }
     </script>
 </body>
-
 </html>

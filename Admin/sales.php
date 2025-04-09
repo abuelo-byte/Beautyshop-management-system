@@ -5,7 +5,7 @@
 $servername = "localhost";
 $username = "root";
 $password = "";
-$dbname = "beautyshop"; // Adjust if your DB name differs
+$dbname = "cafeteria-management-system";
 
 $conn = new mysqli($servername, $username, $password, $dbname);
 if ($conn->connect_error) {
